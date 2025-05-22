@@ -47,6 +47,6 @@ Puedes añadir varias configuraciones para controlar varios precios (distintas g
 
 ## Origen de los Datos
 
-Los datos provienen de la [fuente oficial del Gobierno de España](https://sedeaplicaciones.minetur.gob.es/ServiciosRESTCarburantes/PreciosCarburantes/help).
+Los datos provienen de la [fuente oficial del Gobierno de España](https://geoportalgasolineras.es/index2.jsp).
 
 Este componente se limita a acceder a la API pública para mostrar la información proporcionada.
