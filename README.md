@@ -21,7 +21,7 @@ Deberás añadir el repositorio personalizado en HACS:
 HACS -> Integraciones -> Tres puntitos -> Repositorios Personalizados
 ```
 
-Copias la URL del reposotiro ( https://github.com/MiguelAngelLV/gas_station_spain ), como categoría seleccionas _Integración_ y pulsas en _Añadir_.
+Copias la URL del repositorio (https://github.com/MiguelAngelLV/ha-gas-station-spain), como categoría seleccionas _Integración_ y pulsas en _Añadir_.
 
 Una vez añadido el repositorio, lo instalas.
 
@@ -47,6 +47,6 @@ Puedes añadir varias configuraciones para controlar varios precios (distintas g
 
 ## Origen de los Datos
 
-Los datos provienen de la [fuente oficial del Gobierno de España](https://geoportalgasolineras.es/index2.jsp).
+Los datos provienen de la [fuente oficial del Gobierno de España](https://geoportalgasolineras.es/geoportal-instalaciones/Inicio).
 
 Este componente se limita a acceder a la API pública para mostrar la información proporcionada.

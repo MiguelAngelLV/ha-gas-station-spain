@@ -1,6 +1,6 @@
 [project]
 name = "ha-gas-station-spain"
-version = "2.0"
+version = "2.1"
 description = "Componente para Home Assistant que muestra precio actual del combustible en las distintas gasolineras de España"
 authors = [
     { name = "Miguel Ángel López", email = "miguel.angel.lopez.vicente@gmail.com" }
