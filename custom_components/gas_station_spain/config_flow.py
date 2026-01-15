@@ -209,7 +209,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 class OptionFlowHandler(config_entries.OptionsFlow):
     """Option Flow para la configuración de Gas Station Spain."""
 
-    def __init__(self, config_entry):
+    def __init__(self, _config_entry):
         """Inicializa el Options Flow."""
         super().__init__()
         # No asignamos self.config_entry, Home Assistant ya lo provee como propiedad de solo lectura
