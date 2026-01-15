@@ -3,13 +3,11 @@
 from __future__ import annotations
 
 import logging
-
 from typing import Any, Self, override
 
 import voluptuous as vol
 
 from homeassistant.core import callback
-
 from homeassistant import config_entries
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers.selector import (
@@ -40,7 +38,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Config Flog."""
+    """Config Flow para Gas Station Spain."""
 
     VERSION = 2
     province_id: str
@@ -54,6 +52,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     @staticmethod
     @callback
     def async_get_options_flow(config_entry):
+        """Devuelve el Options Flow asociado a esta configuración."""
         return OptionFlowHandler(config_entry)
 
     @override
@@ -61,16 +60,22 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return False
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        """Primer paso: seleccionar producto y provincia."""
         if user_input is not None:
             self.product_id = user_input[CONF_PRODUCT]
             self.province_id = user_input[CONF_PROVINCE]
             return await self.async_step_municipality()
 
+        # Obtener provincias y productos
         provinces = await gss.get_provinces()
-        options_provinces = list(map(lambda p: SelectOptionDict(label=p.name, value=str(p.id)), provinces))
+        options_provinces = [
+            SelectOptionDict(label=p.name, value=str(p.id)) for p in provinces
+        ]
 
         products = gss.get_products()
-        options_products = list(map(lambda p: SelectOptionDict(label=p.name, value=str(p.id)), products))
+        options_products = [
+            SelectOptionDict(label=p.name, value=str(p.id)) for p in products
+        ]
 
         schema = vol.Schema(
             {
@@ -94,14 +99,16 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return self.async_show_form(step_id="user", data_schema=schema, last_step=False)
 
     async def async_step_municipality(self, user_input: dict[str, Any] | None = None):
-        """Municipality selection."""
-
+        """Segundo paso: seleccionar municipio."""
         if user_input is not None:
             self.municipality_id = user_input[CONF_MUNICIPALITY]
             return await self.async_step_station()
 
         municipalities = await gss.get_municipalities(id_province=self.province_id)
-        options = list(map(lambda m: SelectOptionDict(label=m.name, value=str(m.id)), municipalities))
+        options = [
+            SelectOptionDict(label=m.name, value=str(m.id)) for m in municipalities
+        ]
+
         schema = vol.Schema(
             {
                 vol.Required(CONF_MUNICIPALITY): SelectSelector(
@@ -116,20 +123,22 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return self.async_show_form(step_id="municipality", data_schema=schema)
 
     async def async_step_station(self, user_input: dict[str, Any] | None = None):
-        """Gas Station selection."""
+        """Tercer paso: seleccionar gasolinera."""
         if user_input is not None:
             self.station_id = user_input[CONF_STATION]
             return await self.async_step_options()
 
         stations = await gss.get_gas_stations(
-            municipality_id=int(self.municipality_id), product_id=int(self.product_id), province_id=int(self.province_id)
+            municipality_id=int(self.municipality_id),
+            product_id=int(self.product_id),
+            province_id=int(self.province_id),
         )
-        options = list(
-            map(
-                lambda s: SelectOptionDict(label=f"{s.marquee} - {s.address}", value=str(s.id)),
-                stations,
-            )
-        )
+
+        options = [
+            SelectOptionDict(label=f"{s.marquee} - {s.address}", value=str(s.id))
+            for s in stations
+        ]
+
         schema = vol.Schema(
             {
                 vol.Required(CONF_STATION): SelectSelector(
@@ -144,14 +153,16 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return self.async_show_form(step_id="station", data_schema=schema)
 
     async def async_step_options(self, user_input: dict[str, Any] | None = None):
-        """Reconfigure Conflig Flow."""
-
+        """Último paso: configurar opciones de descuento y visibilidad en el mapa."""
         if user_input is not None:
             self.show_in_map = user_input[CONF_SHOW_IN_MAP]
             self.fixed_discount = user_input[CONF_FIXED_DISCOUNT]
             self.percentage_discount = user_input[CONF_PERCENTAGE_DISCOUNT]
+
             station = await gss.get_gas_station(self.station_id)
-            product = next(filter(lambda x: x.id == int(self.product_id), gss.get_products()))
+            product = next(
+                filter(lambda x: x.id == int(self.product_id), gss.get_products())
+            )
 
             unique = f"{self.product_id}-{station.id}"
             name = f"{product.name}, {station.marquee} ({station.address})"
@@ -196,22 +207,30 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class OptionFlowHandler(config_entries.OptionsFlow):
-    """Option Config."""
+    """Option Flow para la configuración de Gas Station Spain."""
 
     def __init__(self, config_entry):
-        self.config_entry = config_entry
+        """Inicializa el Options Flow."""
+        super().__init__()
+        # No asignamos self.config_entry, Home Assistant ya lo provee como propiedad de solo lectura
 
     async def async_step_init(self, user_input=None):
-        """Manage the options."""
+        """Gestiona las opciones existentes."""
         if user_input is not None:
             return self.async_create_entry(title="Gasolineras de España", data=user_input)
 
-        # Fill options with entry data
-        fixed = self.config_entry.options.get(CONF_FIXED_DISCOUNT, self.config_entry.data[CONF_FIXED_DISCOUNT])
-        percentage = self.config_entry.options.get(CONF_PERCENTAGE_DISCOUNT, self.config_entry.data[CONF_PERCENTAGE_DISCOUNT])
+        # Obtener valores actuales desde el config_entry
+        fixed = self.config_entry.options.get(
+            CONF_FIXED_DISCOUNT, self.config_entry.data[CONF_FIXED_DISCOUNT]
+        )
+        percentage = self.config_entry.options.get(
+            CONF_PERCENTAGE_DISCOUNT, self.config_entry.data[CONF_PERCENTAGE_DISCOUNT]
+        )
+        show_in_map = self.config_entry.options.get(
+            CONF_SHOW_IN_MAP, self.config_entry.data[CONF_SHOW_IN_MAP]
+        )
 
-        show_in_map = self.config_entry.options.get(CONF_SHOW_IN_MAP, self.config_entry.data[CONF_SHOW_IN_MAP])
-
+        # Crear esquema del formulario de opciones
         schema = vol.Schema(
             {
                 vol.Required(CONF_FIXED_DISCOUNT, default=float(fixed)): NumberSelector(
@@ -232,7 +251,7 @@ class OptionFlowHandler(config_entries.OptionsFlow):
                         mode=NumberSelectorMode.SLIDER,
                     )
                 ),
-                vol.Optional(CONF_SHOW_IN_MAP, default=float(show_in_map)): cv.boolean,
+                vol.Optional(CONF_SHOW_IN_MAP, default=show_in_map): cv.boolean,
             }
         )
 
