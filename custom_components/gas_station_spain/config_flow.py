@@ -1,47 +1,46 @@
-"""Config flow for Gas Station Spain."""
+"""Gas Station Spain Config"""
 
 from __future__ import annotations
 
 import logging
-from typing import Any, Self
+from typing import Any, Self, override
 
 import voluptuous as vol
 
-from homeassistant import config_entries
 from homeassistant.core import callback
+from homeassistant import config_entries
 from homeassistant.data_entry_flow import FlowResult
-from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.selector import (
-    NumberSelector,
-    NumberSelectorConfig,
-    NumberSelectorMode,
-    SelectOptionDict,
     SelectSelector,
     SelectSelectorConfig,
+    SelectOptionDict,
     SelectSelectorMode,
+    NumberSelectorConfig,
+    NumberSelector,
+    NumberSelectorMode,
 )
+from homeassistant.helpers import config_validation as cv
 
 import gas_station_spain_api as gss
 
 from .const import (
+    DOMAIN,
     CONF_FIXED_DISCOUNT,
-    CONF_MUNICIPALITY,
     CONF_PERCENTAGE_DISCOUNT,
-    CONF_PRODUCT,
-    CONF_PROVINCE,
     CONF_SHOW_IN_MAP,
     CONF_STATION,
-    DOMAIN,
+    CONF_PRODUCT,
+    CONF_PROVINCE,
+    CONF_MUNICIPALITY,
 )
 
 _LOGGER = logging.getLogger(__name__)
 
 
 class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Config flow for Gas Station Spain."""
+    """Config Flow para Gas Station Spain."""
 
     VERSION = 2
-
     province_id: str
     product_id: str
     municipality_id: str
@@ -53,22 +52,21 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     @staticmethod
     @callback
     def async_get_options_flow(config_entry):
-        """Return the options flow."""
+        """Devuelve el Options Flow asociado a esta configuración."""
         return OptionFlowHandler(config_entry)
 
+    @override
     def is_matching(self, other_flow: Self) -> bool:
-        """Avoid matching flows."""
         return False
 
-    async def async_step_user(
-        self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
-        """First step: select product and province."""
+    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        """Primer paso: seleccionar producto y provincia."""
         if user_input is not None:
             self.product_id = user_input[CONF_PRODUCT]
             self.province_id = user_input[CONF_PROVINCE]
             return await self.async_step_municipality()
 
+        # Obtener provincias y productos
         provinces = await gss.get_provinces()
         options_provinces = [
             SelectOptionDict(label=p.name, value=str(p.id)) for p in provinces
@@ -98,23 +96,15 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             }
         )
 
-        return self.async_show_form(
-            step_id="user",
-            data_schema=schema,
-            last_step=False,
-        )
+        return self.async_show_form(step_id="user", data_schema=schema, last_step=False)
 
-    async def async_step_municipality(
-        self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
-        """Second step: select municipality."""
+    async def async_step_municipality(self, user_input: dict[str, Any] | None = None):
+        """Segundo paso: seleccionar municipio."""
         if user_input is not None:
             self.municipality_id = user_input[CONF_MUNICIPALITY]
             return await self.async_step_station()
 
-        municipalities = await gss.get_municipalities(
-            id_province=self.province_id
-        )
+        municipalities = await gss.get_municipalities(id_province=self.province_id)
         options = [
             SelectOptionDict(label=m.name, value=str(m.id)) for m in municipalities
         ]
@@ -130,16 +120,10 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 )
             }
         )
+        return self.async_show_form(step_id="municipality", data_schema=schema)
 
-        return self.async_show_form(
-            step_id="municipality",
-            data_schema=schema,
-        )
-
-    async def async_step_station(
-        self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
-        """Third step: select gas station."""
+    async def async_step_station(self, user_input: dict[str, Any] | None = None):
+        """Tercer paso: seleccionar gasolinera."""
         if user_input is not None:
             self.station_id = user_input[CONF_STATION]
             return await self.async_step_options()
@@ -151,10 +135,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
         options = [
-            SelectOptionDict(
-                label=f"{s.marquee} - {s.address}",
-                value=str(s.id),
-            )
+            SelectOptionDict(label=f"{s.marquee} - {s.address}", value=str(s.id))
             for s in stations
         ]
 
@@ -169,16 +150,10 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 )
             }
         )
+        return self.async_show_form(step_id="station", data_schema=schema)
 
-        return self.async_show_form(
-            step_id="station",
-            data_schema=schema,
-        )
-
-    async def async_step_options(
-        self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
-        """Final step: discounts and map visibility."""
+    async def async_step_options(self, user_input: dict[str, Any] | None = None):
+        """Último paso: configurar opciones de descuento y visibilidad en el mapa."""
         if user_input is not None:
             self.show_in_map = user_input[CONF_SHOW_IN_MAP]
             self.fixed_discount = user_input[CONF_FIXED_DISCOUNT]
@@ -186,14 +161,13 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
             station = await gss.get_gas_station(self.station_id)
             product = next(
-                p for p in gss.get_products() if p.id == int(self.product_id)
+                filter(lambda x: x.id == int(self.product_id), gss.get_products())
             )
 
             unique = f"{self.product_id}-{station.id}"
             name = f"{product.name}, {station.marquee} ({station.address})"
 
             await self.async_set_unique_id(unique)
-
             return self.async_create_entry(
                 title=name,
                 data={
@@ -209,13 +183,13 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         schema = vol.Schema(
             {
                 vol.Required(CONF_FIXED_DISCOUNT, default=0): NumberSelector(
-                    NumberSelectorConfig(
+                    config=NumberSelectorConfig(
                         min=0,
                         max=1,
                         step=0.01,
                         unit_of_measurement="€",
                         mode=NumberSelectorMode.SLIDER,
-                    )
+                    ),
                 ),
                 vol.Required(CONF_PERCENTAGE_DISCOUNT, default=0): NumberSelector(
                     NumberSelectorConfig(
@@ -229,55 +203,46 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Optional(CONF_SHOW_IN_MAP, default=False): cv.boolean,
             }
         )
-
-        return self.async_show_form(
-            step_id="options",
-            data_schema=schema,
-        )
+        return self.async_show_form(step_id="options", data_schema=schema)
 
 
 class OptionFlowHandler(config_entries.OptionsFlow):
-    """Options flow for Gas Station Spain."""
+    """Option Flow para la configuración de Gas Station Spain."""
 
     def __init__(self, config_entry):
+        """Inicializa el Options Flow."""
         super().__init__()
-        self._config_entry = config_entry
+        # No asignamos self.config_entry, Home Assistant ya lo provee como propiedad de solo lectura
 
     async def async_step_init(self, user_input=None):
-        """Handle existing options."""
+        """Gestiona las opciones existentes."""
         if user_input is not None:
-            return self.async_create_entry(
-                title="Gasolineras de España",
-                data=user_input,
-            )
+            return self.async_create_entry(title="Gasolineras de España", data=user_input)
 
-        fixed = self._config_entry.options.get(
-            CONF_FIXED_DISCOUNT,
-            self._config_entry.data[CONF_FIXED_DISCOUNT],
+        # Obtener valores actuales desde el config_entry
+        fixed = self.config_entry.options.get(
+            CONF_FIXED_DISCOUNT, self.config_entry.data[CONF_FIXED_DISCOUNT]
         )
-        percentage = self._config_entry.options.get(
-            CONF_PERCENTAGE_DISCOUNT,
-            self._config_entry.data[CONF_PERCENTAGE_DISCOUNT],
+        percentage = self.config_entry.options.get(
+            CONF_PERCENTAGE_DISCOUNT, self.config_entry.data[CONF_PERCENTAGE_DISCOUNT]
         )
-        show_in_map = self._config_entry.options.get(
-            CONF_SHOW_IN_MAP,
-            self._config_entry.data[CONF_SHOW_IN_MAP],
+        show_in_map = self.config_entry.options.get(
+            CONF_SHOW_IN_MAP, self.config_entry.data[CONF_SHOW_IN_MAP]
         )
 
+        # Crear esquema del formulario de opciones
         schema = vol.Schema(
             {
                 vol.Required(CONF_FIXED_DISCOUNT, default=float(fixed)): NumberSelector(
-                    NumberSelectorConfig(
+                    config=NumberSelectorConfig(
                         min=0,
                         max=1,
                         step=0.01,
                         unit_of_measurement="€",
                         mode=NumberSelectorMode.SLIDER,
-                    )
+                    ),
                 ),
-                vol.Required(
-                    CONF_PERCENTAGE_DISCOUNT, default=float(percentage)
-                ): NumberSelector(
+                vol.Required(CONF_PERCENTAGE_DISCOUNT, default=float(percentage)): NumberSelector(
                     NumberSelectorConfig(
                         min=0,
                         max=100,
@@ -290,7 +255,4 @@ class OptionFlowHandler(config_entries.OptionsFlow):
             }
         )
 
-        return self.async_show_form(
-            step_id="init",
-            data_schema=schema,
-        )
+        return self.async_show_form(step_id="init", data_schema=schema)
