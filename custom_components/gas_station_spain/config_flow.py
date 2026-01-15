@@ -6,23 +6,25 @@ import logging
 from typing import Any, Self, override
 
 import voluptuous as vol
-from homeassistant import config_entries
+
 from homeassistant.core import callback
+from homeassistant import config_entries
 from homeassistant.data_entry_flow import FlowResult
-from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.selector import (
-    NumberSelector,
-    NumberSelectorConfig,
-    NumberSelectorMode,
-    SelectOptionDict,
     SelectSelector,
     SelectSelectorConfig,
+    SelectOptionDict,
     SelectSelectorMode,
+    NumberSelectorConfig,
+    NumberSelector,
+    NumberSelectorMode,
 )
+from homeassistant.helpers import config_validation as cv
 
 import gas_station_spain_api as gss
 
 from .const import (
+    DOMAIN,
     CONF_FIXED_DISCOUNT,
     CONF_PERCENTAGE_DISCOUNT,
     CONF_SHOW_IN_MAP,
@@ -30,7 +32,6 @@ from .const import (
     CONF_PRODUCT,
     CONF_PROVINCE,
     CONF_MUNICIPALITY,
-    DOMAIN,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -58,9 +59,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def is_matching(self, other_flow: Self) -> bool:
         return False
 
-    async def async_step_user(
-        self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         """Primer paso: seleccionar producto y provincia."""
         if user_input is not None:
             self.product_id = user_input[CONF_PRODUCT]
@@ -69,10 +68,14 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         # Obtener provincias y productos
         provinces = await gss.get_provinces()
-        options_provinces = [SelectOptionDict(label=p.name, value=str(p.id)) for p in provinces]
+        options_provinces = [
+            SelectOptionDict(label=p.name, value=str(p.id)) for p in provinces
+        ]
 
         products = gss.get_products()
-        options_products = [SelectOptionDict(label=p.name, value=str(p.id)) for p in products]
+        options_products = [
+            SelectOptionDict(label=p.name, value=str(p.id)) for p in products
+        ]
 
         schema = vol.Schema(
             {
@@ -95,22 +98,24 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(step_id="user", data_schema=schema, last_step=False)
 
-    async def async_step_municipality(
-        self, user_input: dict[str, Any] | None = None
-    ):
+    async def async_step_municipality(self, user_input: dict[str, Any] | None = None):
         """Segundo paso: seleccionar municipio."""
         if user_input is not None:
             self.municipality_id = user_input[CONF_MUNICIPALITY]
             return await self.async_step_station()
 
         municipalities = await gss.get_municipalities(id_province=self.province_id)
-        options = [SelectOptionDict(label=m.name, value=str(m.id)) for m in municipalities]
+        options = [
+            SelectOptionDict(label=m.name, value=str(m.id)) for m in municipalities
+        ]
 
         schema = vol.Schema(
             {
                 vol.Required(CONF_MUNICIPALITY): SelectSelector(
                     SelectSelectorConfig(
-                        options=options, multiple=False, mode=SelectSelectorMode.DROPDOWN
+                        options=options,
+                        multiple=False,
+                        mode=SelectSelectorMode.DROPDOWN,
                     )
                 )
             }
@@ -138,7 +143,9 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             {
                 vol.Required(CONF_STATION): SelectSelector(
                     SelectSelectorConfig(
-                        options=options, multiple=False, mode=SelectSelectorMode.DROPDOWN
+                        options=options,
+                        multiple=False,
+                        mode=SelectSelectorMode.DROPDOWN,
                     )
                 )
             }
@@ -177,12 +184,20 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             {
                 vol.Required(CONF_FIXED_DISCOUNT, default=0): NumberSelector(
                     config=NumberSelectorConfig(
-                        min=0, max=1, step=0.01, unit_of_measurement="€", mode=NumberSelectorMode.SLIDER
+                        min=0,
+                        max=1,
+                        step=0.01,
+                        unit_of_measurement="€",
+                        mode=NumberSelectorMode.SLIDER,
                     ),
                 ),
                 vol.Required(CONF_PERCENTAGE_DISCOUNT, default=0): NumberSelector(
                     NumberSelectorConfig(
-                        min=0, max=100, step=0.01, unit_of_measurement="%", mode=NumberSelectorMode.SLIDER
+                        min=0,
+                        max=100,
+                        step=0.01,
+                        unit_of_measurement="%",
+                        mode=NumberSelectorMode.SLIDER,
                     )
                 ),
                 vol.Optional(CONF_SHOW_IN_MAP, default=False): cv.boolean,
@@ -215,16 +230,25 @@ class OptionFlowHandler(config_entries.OptionsFlow):
             CONF_SHOW_IN_MAP, self.config_entry.data[CONF_SHOW_IN_MAP]
         )
 
+        # Crear esquema del formulario de opciones
         schema = vol.Schema(
             {
                 vol.Required(CONF_FIXED_DISCOUNT, default=float(fixed)): NumberSelector(
                     config=NumberSelectorConfig(
-                        min=0, max=1, step=0.01, unit_of_measurement="€", mode=NumberSelectorMode.SLIDER
+                        min=0,
+                        max=1,
+                        step=0.01,
+                        unit_of_measurement="€",
+                        mode=NumberSelectorMode.SLIDER,
                     ),
                 ),
                 vol.Required(CONF_PERCENTAGE_DISCOUNT, default=float(percentage)): NumberSelector(
                     NumberSelectorConfig(
-                        min=0, max=100, step=0.01, unit_of_measurement="%", mode=NumberSelectorMode.SLIDER
+                        min=0,
+                        max=100,
+                        step=0.01,
+                        unit_of_measurement="%",
+                        mode=NumberSelectorMode.SLIDER,
                     )
                 ),
                 vol.Optional(CONF_SHOW_IN_MAP, default=show_in_map): cv.boolean,
