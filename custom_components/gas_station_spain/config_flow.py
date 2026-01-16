@@ -194,7 +194,6 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
         return self.async_show_form(step_id="options", data_schema=schema)
 
-
 class OptionFlowHandler(config_entries.OptionsFlow):
     """Option Config."""
 
@@ -202,6 +201,7 @@ class OptionFlowHandler(config_entries.OptionsFlow):
         self.entry = config_entry
 
     async def async_step_init(self, user_input=None):
+        """Handle the initial step of the options flow."""
         if user_input is not None:
             return self.async_create_entry(title="Gasolineras de España", data=user_input)
 
@@ -234,3 +234,4 @@ class OptionFlowHandler(config_entries.OptionsFlow):
         )
 
         return self.async_show_form(step_id="init", data_schema=schema)
+
