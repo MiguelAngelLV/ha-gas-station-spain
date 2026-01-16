@@ -198,23 +198,33 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 class OptionFlowHandler(config_entries.OptionsFlow):
     """Option Config."""
 
-    def __init__(self, config_entry):
-        self.config_entry = config_entry
-
     async def async_step_init(self, user_input=None):
         """Manage the options."""
         if user_input is not None:
-            return self.async_create_entry(title="Gasolineras de España", data=user_input)
+            return self.async_create_entry(
+                title="Gasolineras de España",
+                data=user_input,
+            )
 
-        # Fill options with entry data
-        fixed = self.config_entry.options.get(CONF_FIXED_DISCOUNT, self.config_entry.data[CONF_FIXED_DISCOUNT])
-        percentage = self.config_entry.options.get(CONF_PERCENTAGE_DISCOUNT, self.config_entry.data[CONF_PERCENTAGE_DISCOUNT])
-
-        show_in_map = self.config_entry.options.get(CONF_SHOW_IN_MAP, self.config_entry.data[CONF_SHOW_IN_MAP])
+        fixed = self.config_entry.options.get(
+            CONF_FIXED_DISCOUNT,
+            self.config_entry.data.get(CONF_FIXED_DISCOUNT, 0),
+        )
+        percentage = self.config_entry.options.get(
+            CONF_PERCENTAGE_DISCOUNT,
+            self.config_entry.data.get(CONF_PERCENTAGE_DISCOUNT, 0),
+        )
+        show_in_map = self.config_entry.options.get(
+            CONF_SHOW_IN_MAP,
+            self.config_entry.data.get(CONF_SHOW_IN_MAP, False),
+        )
 
         schema = vol.Schema(
             {
-                vol.Required(CONF_FIXED_DISCOUNT, default=float(fixed)): NumberSelector(
+                vol.Required(
+                    CONF_FIXED_DISCOUNT,
+                    default=float(fixed),
+                ): NumberSelector(
                     config=NumberSelectorConfig(
                         min=0,
                         max=1,
@@ -223,8 +233,11 @@ class OptionFlowHandler(config_entries.OptionsFlow):
                         mode=NumberSelectorMode.SLIDER,
                     ),
                 ),
-                vol.Required(CONF_PERCENTAGE_DISCOUNT, default=float(percentage)): NumberSelector(
-                    NumberSelectorConfig(
+                vol.Required(
+                    CONF_PERCENTAGE_DISCOUNT,
+                    default=float(percentage),
+                ): NumberSelector(
+                    config=NumberSelectorConfig(
                         min=0,
                         max=100,
                         step=0.01,
@@ -232,7 +245,10 @@ class OptionFlowHandler(config_entries.OptionsFlow):
                         mode=NumberSelectorMode.SLIDER,
                     )
                 ),
-                vol.Optional(CONF_SHOW_IN_MAP, default=float(show_in_map)): cv.boolean,
+                vol.Optional(
+                    CONF_SHOW_IN_MAP,
+                    default=show_in_map,
+                ): cv.boolean,
             }
         )
 
