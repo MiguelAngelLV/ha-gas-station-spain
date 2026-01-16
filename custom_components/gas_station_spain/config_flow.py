@@ -54,7 +54,8 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     @staticmethod
     @callback
     def async_get_options_flow(config_entry):
-        return OptionFlowHandler(config_entry)
+        return OptionFlowHandler()
+
 
     @override
     def is_matching(self, other_flow: Self) -> bool:
