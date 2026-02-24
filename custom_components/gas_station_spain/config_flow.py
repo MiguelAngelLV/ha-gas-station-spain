@@ -194,23 +194,20 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
         return self.async_show_form(step_id="options", data_schema=schema)
 
-
 class OptionFlowHandler(config_entries.OptionsFlow):
     """Option Config."""
 
     def __init__(self, config_entry):
-        self.config_entry = config_entry
+        self.entry = config_entry
 
     async def async_step_init(self, user_input=None):
-        """Manage the options."""
+        """Handle the initial step of the options flow."""
         if user_input is not None:
             return self.async_create_entry(title="Gasolineras de España", data=user_input)
 
-        # Fill options with entry data
-        fixed = self.config_entry.options.get(CONF_FIXED_DISCOUNT, self.config_entry.data[CONF_FIXED_DISCOUNT])
-        percentage = self.config_entry.options.get(CONF_PERCENTAGE_DISCOUNT, self.config_entry.data[CONF_PERCENTAGE_DISCOUNT])
-
-        show_in_map = self.config_entry.options.get(CONF_SHOW_IN_MAP, self.config_entry.data[CONF_SHOW_IN_MAP])
+        fixed = self.entry.options.get(CONF_FIXED_DISCOUNT, self.entry.data[CONF_FIXED_DISCOUNT])
+        percentage = self.entry.options.get(CONF_PERCENTAGE_DISCOUNT, self.entry.data[CONF_PERCENTAGE_DISCOUNT])
+        show_in_map = self.entry.options.get(CONF_SHOW_IN_MAP, self.entry.data[CONF_SHOW_IN_MAP])
 
         schema = vol.Schema(
             {
@@ -232,7 +229,7 @@ class OptionFlowHandler(config_entries.OptionsFlow):
                         mode=NumberSelectorMode.SLIDER,
                     )
                 ),
-                vol.Optional(CONF_SHOW_IN_MAP, default=float(show_in_map)): cv.boolean,
+                vol.Optional(CONF_SHOW_IN_MAP, default=show_in_map): cv.boolean,
             }
         )
 
