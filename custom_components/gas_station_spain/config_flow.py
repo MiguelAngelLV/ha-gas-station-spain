@@ -3,42 +3,44 @@
 from __future__ import annotations
 
 import logging
+
 from typing import Any, Self, override
 
 import voluptuous as vol
 
-from homeassistant import config_entries
 from homeassistant.core import callback
+
+from homeassistant import config_entries
 from homeassistant.data_entry_flow import FlowResult
-from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.selector import (
-    NumberSelector,
-    NumberSelectorConfig,
-    NumberSelectorMode,
-    SelectOptionDict,
     SelectSelector,
     SelectSelectorConfig,
+    SelectOptionDict,
     SelectSelectorMode,
+    NumberSelectorConfig,
+    NumberSelector,
+    NumberSelectorMode,
 )
+from homeassistant.helpers import config_validation as cv
 
 import gas_station_spain_api as gss
 
 from .const import (
+    DOMAIN,
     CONF_FIXED_DISCOUNT,
-    CONF_MUNICIPALITY,
     CONF_PERCENTAGE_DISCOUNT,
-    CONF_PRODUCT,
-    CONF_PROVINCE,
     CONF_SHOW_IN_MAP,
     CONF_STATION,
-    DOMAIN,
+    CONF_PRODUCT,
+    CONF_PROVINCE,
+    CONF_MUNICIPALITY,
 )
 
 _LOGGER = logging.getLogger(__name__)
 
 
 class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Config Flow."""
+    """Config Flog."""
 
     VERSION = 2
     province_id: str
@@ -51,35 +53,30 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     @staticmethod
     @callback
-    def async_get_options_flow(
-        config_entry: config_entries.ConfigEntry,
-    ) -> OptionFlowHandler:
-        """Get the options flow for this handler."""
+    def async_get_options_flow(config_entry):
         return OptionFlowHandler(config_entry)
 
     @override
     def is_matching(self, other_flow: Self) -> bool:
-        """Return if the flow matches another."""
         return False
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Handle the initial step."""
         if user_input is not None:
             self.product_id = user_input[CONF_PRODUCT]
             self.province_id = user_input[CONF_PROVINCE]
             return await self.async_step_municipality()
 
         provinces = await gss.get_provinces()
-        options_provinces = [
-            SelectOptionDict(label=p.name, value=str(p.id)) for p in provinces
-        ]
+        options_provinces = list(
+            map(lambda p: SelectOptionDict(label=p.name, value=str(p.id)), provinces)
+        )
 
         products = gss.get_products()
-        options_products = [
-            SelectOptionDict(label=p.name, value=str(p.id)) for p in products
-        ]
+        options_products = list(
+            map(lambda p: SelectOptionDict(label=p.name, value=str(p.id)), products)
+        )
 
         schema = vol.Schema(
             {
@@ -102,18 +99,20 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(step_id="user", data_schema=schema, last_step=False)
 
-    async def async_step_municipality(
-        self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    async def async_step_municipality(self, user_input: dict[str, Any] | None = None):
         """Municipality selection."""
+
         if user_input is not None:
             self.municipality_id = user_input[CONF_MUNICIPALITY]
             return await self.async_step_station()
 
         municipalities = await gss.get_municipalities(id_province=self.province_id)
-        options = [
-            SelectOptionDict(label=m.name, value=str(m.id)) for m in municipalities
-        ]
+        options = list(
+            map(
+                lambda m: SelectOptionDict(label=m.name, value=str(m.id)),
+                municipalities,
+            )
+        )
         schema = vol.Schema(
             {
                 vol.Required(CONF_MUNICIPALITY): SelectSelector(
@@ -127,9 +126,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
         return self.async_show_form(step_id="municipality", data_schema=schema)
 
-    async def async_step_station(
-        self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    async def async_step_station(self, user_input: dict[str, Any] | None = None):
         """Gas Station selection."""
         if user_input is not None:
             self.station_id = user_input[CONF_STATION]
@@ -140,10 +137,14 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             product_id=int(self.product_id),
             province_id=int(self.province_id),
         )
-        options = [
-            SelectOptionDict(label=f"{s.marquee} - {s.address}", value=str(s.id))
-            for s in stations
-        ]
+        options = list(
+            map(
+                lambda s: SelectOptionDict(
+                    label=f"{s.marquee} - {s.address}", value=str(s.id)
+                ),
+                stations,
+            )
+        )
         schema = vol.Schema(
             {
                 vol.Required(CONF_STATION): SelectSelector(
@@ -157,10 +158,9 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
         return self.async_show_form(step_id="station", data_schema=schema)
 
-    async def async_step_options(
-        self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
-        """Reconfigure Config Flow."""
+    async def async_step_options(self, user_input: dict[str, Any] | None = None):
+        """Reconfigure Conflig Flow."""
+
         if user_input is not None:
             self.show_in_map = user_input[CONF_SHOW_IN_MAP]
             self.fixed_discount = user_input[CONF_FIXED_DISCOUNT]
@@ -215,13 +215,10 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 class OptionFlowHandler(config_entries.OptionsFlow):
     """Option Config."""
 
-    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
-        """Initialize options flow."""
+    def __init__(self, config_entry):
         self.entry = config_entry
 
-    async def async_step_init(
-        self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    async def async_step_init(self, user_input=None):
         """Handle the initial step of the options flow."""
         if user_input is not None:
             return self.async_create_entry(
