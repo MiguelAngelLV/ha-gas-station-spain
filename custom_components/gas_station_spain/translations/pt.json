@@ -1,12 +1,14 @@
 {
   "config": {
     "abort": {
-      "already_configured": "Equipamento já configurado"
+      "already_configured": "Equipamento já configurado",
+      "server_unavailable": "O site de preços de combustível não está operacional neste momento, por favor tente mais tarde."
     },
     "error": {
       "cannot_connect": "Falha na ligação",
       "invalid_auth": "Falha na autenticação",
-      "unknown": "Erro desconhecido"
+      "unknown": "Erro desconhecido",
+      "server_unavailable": "O site de preços de combustível não está operacional neste momento, por favor tente mais tarde."
     },
     "step": {
       "user": {

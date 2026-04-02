@@ -1,12 +1,14 @@
 {
   "config": {
     "abort": {
-      "already_configured": "Device is already configured"
+      "already_configured": "Device is already configured",
+      "server_unavailable": "The fuel prices website is not operational at this time, please try again later."
     },
     "error": {
       "cannot_connect": "Failed to connect",
       "invalid_auth": "Invalid authentication",
-      "unknown": "Unexpected error"
+      "unknown": "Unexpected error",
+      "server_unavailable": "The fuel prices website is not operational at this time, please try again later."
     },
     "step": {
       "user": {

@@ -11,7 +11,7 @@ repository = "https://github.com/miguelangellv/gas-station-spain"
 requires-python = ">=3.13.2"
 dependencies = [
     "homeassistant>=2025.10.0",
-    "gas-station-spain-api==1.2.0",
+    "gas-station-spain-api==1.4.0",
 ]
 
 [project.urls]
@@ -75,6 +75,10 @@ dev-dependencies = [
     "pre-commit-hooks>=4.5.0",
     "pylint>=3.1.0",
     "ruff>=0.3.2",
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=4.1.0",
+    "pytest-homeassistant-custom-component>=0.13.0",
 ]
 
 [build-system]
