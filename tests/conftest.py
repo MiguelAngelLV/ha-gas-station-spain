@@ -1,5 +1,7 @@
 """Common fixtures for Gas Station Spain tests."""
 
+# pylint: disable=redefined-outer-name,unused-argument
+
 from collections.abc import Generator
 from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
@@ -14,7 +16,7 @@ from custom_components.gas_station_spain.const import (
     CONF_SHOW_IN_MAP,
 )
 
-pytest_plugins = "pytest_homeassistant_custom_component"
+pytest_plugins = "pytest_homeassistant_custom_component"  # pylint: disable=invalid-name
 
 
 @pytest.fixture(autouse=True)
@@ -43,8 +45,8 @@ def mock_setup_entry() -> Generator[AsyncMock]:
     with patch(
         "custom_components.gas_station_spain.async_setup_entry",
         return_value=True,
-    ) as mock_setup_entry:
-        yield mock_setup_entry
+    ) as mock_setup:
+        yield mock_setup
 
 
 @pytest.fixture
@@ -92,7 +94,7 @@ def mock_get_provinces(mock_province):
     """Mock get_provinces API call."""
     with patch("custom_components.gas_station_spain.config_flow.gss.get_provinces") as mock:
 
-        async def async_return():
+        async def async_return(*_args, **_kwargs):
             return [mock_province]
 
         mock.side_effect = async_return
@@ -112,7 +114,7 @@ def mock_get_municipalities(mock_municipality):
     """Mock get_municipalities API call."""
     with patch("custom_components.gas_station_spain.config_flow.gss.get_municipalities") as mock:
 
-        async def async_return(*args, **kwargs):
+        async def async_return(*_args, **_kwargs):
             return [mock_municipality]
 
         mock.side_effect = async_return
@@ -124,7 +126,7 @@ def mock_get_gas_stations(mock_gas_station):
     """Mock get_gas_stations API call."""
     with patch("custom_components.gas_station_spain.config_flow.gss.get_gas_stations") as mock:
 
-        async def async_return(*args, **kwargs):
+        async def async_return(*_args, **_kwargs):
             return [mock_gas_station]
 
         mock.side_effect = async_return
@@ -136,7 +138,7 @@ def mock_get_gas_station(mock_gas_station):
     """Mock get_gas_station API call."""
     with patch("custom_components.gas_station_spain.config_flow.gss.get_gas_station") as mock:
 
-        async def async_return(*args, **kwargs):
+        async def async_return(*_args, **_kwargs):
             return mock_gas_station
 
         mock.side_effect = async_return
@@ -148,7 +150,7 @@ def mock_get_price():
     """Mock get_price API call."""
     with patch("custom_components.gas_station_spain.sensor.gss.get_price") as mock:
 
-        async def async_return(*args, **kwargs):
+        async def async_return(*_args, **_kwargs):
             return 1.459
 
         mock.side_effect = async_return

@@ -1,7 +1,10 @@
 """Test the Gas Station Spain config flow."""
 
+# pylint: disable=unused-argument,too-many-arguments,too-many-positional-arguments
+
 from unittest.mock import patch
 
+from gas_station_spain_api.exceptions import GasStationServerUnavailableException
 from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
@@ -16,8 +19,6 @@ from custom_components.gas_station_spain.const import (
     CONF_PERCENTAGE_DISCOUNT,
     CONF_SHOW_IN_MAP,
 )
-
-from gas_station_spain_api.exceptions import GasStationServerUnavailableException
 
 
 async def test_form_user_step(
