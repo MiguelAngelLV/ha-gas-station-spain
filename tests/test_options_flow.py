@@ -1,7 +1,5 @@
 """Test the Gas Station Spain options flow."""
 
-from unittest.mock import patch
-
 import pytest
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
@@ -41,9 +39,7 @@ def mock_config_entry() -> MockConfigEntry:
     )
 
 
-async def test_options_flow_init(
-    hass: HomeAssistant, mock_config_entry: MockConfigEntry
-) -> None:
+async def test_options_flow_init(hass: HomeAssistant, mock_config_entry: MockConfigEntry) -> None:
     """Test options flow initialization."""
     mock_config_entry.add_to_hass(hass)
 
@@ -53,9 +49,7 @@ async def test_options_flow_init(
     assert result["step_id"] == "init"
 
 
-async def test_options_flow_update(
-    hass: HomeAssistant, mock_config_entry: MockConfigEntry
-) -> None:
+async def test_options_flow_update(hass: HomeAssistant, mock_config_entry: MockConfigEntry) -> None:
     """Test updating options."""
     mock_config_entry.add_to_hass(hass)
 
@@ -78,9 +72,7 @@ async def test_options_flow_update(
     }
 
 
-async def test_options_flow_defaults_from_data(
-    hass: HomeAssistant, mock_config_entry: MockConfigEntry
-) -> None:
+async def test_options_flow_defaults_from_data(hass: HomeAssistant, mock_config_entry: MockConfigEntry) -> None:
     """Test that options flow uses defaults from config entry data."""
     mock_config_entry.add_to_hass(hass)
 
@@ -91,9 +83,7 @@ async def test_options_flow_defaults_from_data(
     # This is tested implicitly through the schema defaults
 
 
-async def test_options_flow_defaults_from_options(
-    hass: HomeAssistant
-) -> None:
+async def test_options_flow_defaults_from_options(hass: HomeAssistant) -> None:
     """Test that options flow uses defaults from existing options if available."""
     config_entry = MockConfigEntry(
         version=2,
@@ -122,4 +112,3 @@ async def test_options_flow_defaults_from_options(
 
     assert result["type"] == FlowResultType.FORM
     # The form should prefer options over data for defaults
-

@@ -134,7 +134,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             gss.get_gas_stations,
             municipality_id=int(self.municipality_id),
             product_id=int(self.product_id),
-            province_id=int(self.province_id)
+            province_id=int(self.province_id),
         )
         if stations is None:
             return self.async_abort(reason="server_unavailable")

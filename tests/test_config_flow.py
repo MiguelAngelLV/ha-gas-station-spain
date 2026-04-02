@@ -1,8 +1,7 @@
 """Test the Gas Station Spain config flow."""
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
-import pytest
 from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
@@ -27,9 +26,7 @@ async def test_form_user_step(
     mock_get_products,
 ) -> None:
     """Test we get the user form."""
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": config_entries.SOURCE_USER}
-    )
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
     assert result["type"] == FlowResultType.FORM
     assert result["step_id"] == "user"
 
@@ -41,9 +38,7 @@ async def test_form_user_step_with_input(
     mock_get_municipalities,
 ) -> None:
     """Test user step with input goes to municipality step."""
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": config_entries.SOURCE_USER}
-    )
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
 
     result2 = await hass.config_entries.flow.async_configure(
         result["flow_id"],
@@ -66,9 +61,7 @@ async def test_form_municipality_step(
     mock_get_gas_stations,
 ) -> None:
     """Test municipality step goes to station step."""
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": config_entries.SOURCE_USER}
-    )
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
 
     result2 = await hass.config_entries.flow.async_configure(
         result["flow_id"],
@@ -98,9 +91,7 @@ async def test_form_station_step(
     mock_get_gas_stations,
 ) -> None:
     """Test station step goes to options step."""
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": config_entries.SOURCE_USER}
-    )
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
 
     result2 = await hass.config_entries.flow.async_configure(
         result["flow_id"],
@@ -139,9 +130,7 @@ async def test_full_flow_success(
     mock_setup_entry,
 ) -> None:
     """Test a successful complete configuration flow."""
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": config_entries.SOURCE_USER}
-    )
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
 
     result2 = await hass.config_entries.flow.async_configure(
         result["flow_id"],
@@ -197,9 +186,7 @@ async def test_server_unavailable_on_user_step(
         "custom_components.gas_station_spain.config_flow.gss.get_provinces",
         side_effect=GasStationServerUnavailableException("Server error"),
     ):
-        result = await hass.config_entries.flow.async_init(
-            DOMAIN, context={"source": config_entries.SOURCE_USER}
-        )
+        result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
 
         assert result["type"] == FlowResultType.ABORT
         assert result["reason"] == "server_unavailable"
@@ -211,9 +198,7 @@ async def test_server_unavailable_on_municipality_step(
     mock_get_products,
 ) -> None:
     """Test server unavailable error on municipality step."""
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": config_entries.SOURCE_USER}
-    )
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
 
     with patch(
         "custom_components.gas_station_spain.config_flow.gss.get_municipalities",
@@ -238,9 +223,7 @@ async def test_server_unavailable_on_station_step(
     mock_get_municipalities,
 ) -> None:
     """Test server unavailable error on station step."""
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": config_entries.SOURCE_USER}
-    )
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
 
     result2 = await hass.config_entries.flow.async_configure(
         result["flow_id"],
@@ -273,9 +256,7 @@ async def test_server_unavailable_on_options_step(
     mock_get_gas_stations,
 ) -> None:
     """Test server unavailable error on options step."""
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": config_entries.SOURCE_USER}
-    )
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
 
     result2 = await hass.config_entries.flow.async_configure(
         result["flow_id"],
@@ -314,4 +295,3 @@ async def test_server_unavailable_on_options_step(
 
         assert result5["type"] == FlowResultType.ABORT
         assert result5["reason"] == "server_unavailable"
-

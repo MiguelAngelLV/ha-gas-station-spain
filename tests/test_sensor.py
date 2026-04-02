@@ -1,25 +1,14 @@
 """Test the Gas Station Spain sensor platform."""
 
-from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import timedelta
+# pylint: disable=protected-access,redefined-outer-name,unused-argument
 
-import pytest
+from unittest.mock import MagicMock, patch
+
 from homeassistant.const import CURRENCY_EURO
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
-from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.gas_station_spain.const import (
-    DOMAIN,
-    CONF_PROVINCE,
-    CONF_PRODUCT,
-    CONF_MUNICIPALITY,
-    CONF_STATION,
-    CONF_FIXED_DISCOUNT,
-    CONF_PERCENTAGE_DISCOUNT,
-    CONF_SHOW_IN_MAP,
-)
+from custom_components.gas_station_spain.const import DOMAIN
 from custom_components.gas_station_spain.sensor import (
     async_setup_entry,
     GasStationCoordinator,
@@ -27,56 +16,26 @@ from custom_components.gas_station_spain.sensor import (
 )
 
 
-@pytest.fixture
-def mock_config_entry() -> MockConfigEntry:
-    """Create a mock config entry for sensor tests."""
-    return MockConfigEntry(
-        version=2,
-        minor_version=0,
-        domain=DOMAIN,
-        title="Gasolina 95 E5, Repsol (Calle Ejemplo 123)",
-        data={
-            CONF_PROVINCE: "28",
-            CONF_PRODUCT: "1",
-            CONF_MUNICIPALITY: "79",
-            CONF_STATION: "1234",
-            CONF_FIXED_DISCOUNT: 0.05,
-            CONF_PERCENTAGE_DISCOUNT: 5.0,
-            CONF_SHOW_IN_MAP: True,
-        },
-        unique_id="1-1234",
-    )
-
-
-@pytest.fixture
-def mock_coordinator(hass: HomeAssistant) -> GasStationCoordinator:
-    """Create a mock coordinator."""
-    coordinator = GasStationCoordinator(
-        hass=hass,
-        gas_station_id=1234,
-        product_id=1,
-    )
-    coordinator.data = {
-        "price": 1.459,
-        "address": "Calle Ejemplo 123",
-        "latitude": 40.4168,
-        "longitude": -3.7038,
-    }
-    return coordinator
-
-
 async def test_async_setup_entry(
     hass: HomeAssistant,
-    mock_config_entry: MockConfigEntry,
+    mock_config_entry_data: dict,
     mock_get_gas_station,
     mock_get_price,
 ) -> None:
     """Test sensor platform setup."""
-    mock_config_entry.add_to_hass(hass)
+    entry = MockConfigEntry(
+        version=2,
+        minor_version=0,
+        domain=DOMAIN,
+        title="Gasolina 95 E5, Repsol (Calle Ejemplo 123)",
+        data=mock_config_entry_data,
+        unique_id="1-1234",
+    )
+    entry.add_to_hass(hass)
 
     async_add_entities = MagicMock()
 
-    await async_setup_entry(hass, mock_config_entry, async_add_entities)
+    await async_setup_entry(hass, entry, async_add_entities)
 
     assert async_add_entities.called
     assert len(async_add_entities.call_args[0][0]) == 1
@@ -161,18 +120,27 @@ async def test_coordinator_update_data_exception(
         assert data["price"] is None
 
 
-async def test_sensor_init(
-    hass: HomeAssistant,
-    mock_coordinator: GasStationCoordinator,
-) -> None:
+async def test_sensor_init(hass: HomeAssistant) -> None:
     """Test sensor initialization."""
+    coordinator = GasStationCoordinator(
+        hass=hass,
+        gas_station_id=1234,
+        product_id=1,
+    )
+    coordinator.data = {
+        "price": 1.459,
+        "address": "Calle Ejemplo 123",
+        "latitude": 40.4168,
+        "longitude": -3.7038,
+    }
+
     sensor = GasStationSensor(
         name="Test Sensor",
         unique_id="test-unique-id",
         fixed_discount=0.05,
         percentage_discount=5.0,
         show_in_map=True,
-        coordinator=mock_coordinator,
+        coordinator=coordinator,
     )
 
     assert sensor._attr_name == "Test Sensor"
@@ -184,18 +152,27 @@ async def test_sensor_init(
     assert sensor.entity_description.native_unit_of_measurement == CURRENCY_EURO
 
 
-async def test_sensor_state_calculation(
-    hass: HomeAssistant,
-    mock_coordinator: GasStationCoordinator,
-) -> None:
+async def test_sensor_state_calculation(hass: HomeAssistant) -> None:
     """Test sensor state calculation with discounts."""
+    coordinator = GasStationCoordinator(
+        hass=hass,
+        gas_station_id=1234,
+        product_id=1,
+    )
+    coordinator.data = {
+        "price": 1.459,
+        "address": "Calle Ejemplo 123",
+        "latitude": 40.4168,
+        "longitude": -3.7038,
+    }
+
     sensor = GasStationSensor(
         name="Test Sensor",
         unique_id="test-unique-id",
         fixed_discount=0.05,
         percentage_discount=5.0,
         show_in_map=False,
-        coordinator=mock_coordinator,
+        coordinator=coordinator,
     )
 
     sensor.hass = hass
@@ -212,18 +189,27 @@ async def test_sensor_state_calculation(
     assert sensor._attrs["Dirección"] == "Calle Ejemplo 123"
 
 
-async def test_sensor_state_calculation_no_discounts(
-    hass: HomeAssistant,
-    mock_coordinator: GasStationCoordinator,
-) -> None:
+async def test_sensor_state_calculation_no_discounts(hass: HomeAssistant) -> None:
     """Test sensor state calculation without discounts."""
+    coordinator = GasStationCoordinator(
+        hass=hass,
+        gas_station_id=1234,
+        product_id=1,
+    )
+    coordinator.data = {
+        "price": 1.459,
+        "address": "Calle Ejemplo 123",
+        "latitude": 40.4168,
+        "longitude": -3.7038,
+    }
+
     sensor = GasStationSensor(
         name="Test Sensor",
         unique_id="test-unique-id",
         fixed_discount=0.0,
         percentage_discount=0.0,
         show_in_map=False,
-        coordinator=mock_coordinator,
+        coordinator=coordinator,
     )
 
     sensor.hass = hass
@@ -234,18 +220,27 @@ async def test_sensor_state_calculation_no_discounts(
     assert sensor._attrs["Precio Original"] == 1.459
 
 
-async def test_sensor_map_attributes(
-    hass: HomeAssistant,
-    mock_coordinator: GasStationCoordinator,
-) -> None:
+async def test_sensor_map_attributes(hass: HomeAssistant) -> None:
     """Test sensor includes map attributes when show_in_map is True."""
+    coordinator = GasStationCoordinator(
+        hass=hass,
+        gas_station_id=1234,
+        product_id=1,
+    )
+    coordinator.data = {
+        "price": 1.459,
+        "address": "Calle Ejemplo 123",
+        "latitude": 40.4168,
+        "longitude": -3.7038,
+    }
+
     sensor = GasStationSensor(
         name="Test Sensor",
         unique_id="test-unique-id",
         fixed_discount=0.0,
         percentage_discount=0.0,
         show_in_map=True,
-        coordinator=mock_coordinator,
+        coordinator=coordinator,
     )
 
     sensor.hass = hass
@@ -256,18 +251,27 @@ async def test_sensor_map_attributes(
     assert sensor._attrs["longitude"] == -3.7038
 
 
-async def test_sensor_no_map_attributes(
-    hass: HomeAssistant,
-    mock_coordinator: GasStationCoordinator,
-) -> None:
+async def test_sensor_no_map_attributes(hass: HomeAssistant) -> None:
     """Test sensor excludes map attributes when show_in_map is False."""
+    coordinator = GasStationCoordinator(
+        hass=hass,
+        gas_station_id=1234,
+        product_id=1,
+    )
+    coordinator.data = {
+        "price": 1.459,
+        "address": "Calle Ejemplo 123",
+        "latitude": 40.4168,
+        "longitude": -3.7038,
+    }
+
     sensor = GasStationSensor(
         name="Test Sensor",
         unique_id="test-unique-id",
         fixed_discount=0.0,
         percentage_discount=0.0,
         show_in_map=False,
-        coordinator=mock_coordinator,
+        coordinator=coordinator,
     )
 
     sensor.hass = hass
@@ -278,18 +282,27 @@ async def test_sensor_no_map_attributes(
     assert "longitude" not in sensor._attrs
 
 
-async def test_sensor_extra_state_attributes(
-    hass: HomeAssistant,
-    mock_coordinator: GasStationCoordinator,
-) -> None:
+async def test_sensor_extra_state_attributes(hass: HomeAssistant) -> None:
     """Test sensor extra state attributes."""
+    coordinator = GasStationCoordinator(
+        hass=hass,
+        gas_station_id=1234,
+        product_id=1,
+    )
+    coordinator.data = {
+        "price": 1.459,
+        "address": "Calle Ejemplo 123",
+        "latitude": 40.4168,
+        "longitude": -3.7038,
+    }
+
     sensor = GasStationSensor(
         name="Test Sensor",
         unique_id="test-unique-id",
         fixed_discount=0.05,
         percentage_discount=5.0,
         show_in_map=True,
-        coordinator=mock_coordinator,
+        coordinator=coordinator,
     )
 
     sensor.hass = hass
@@ -304,19 +317,27 @@ async def test_sensor_extra_state_attributes(
     assert "longitude" in attrs
 
 
-async def test_sensor_display_precision(
-    hass: HomeAssistant,
-    mock_coordinator: GasStationCoordinator,
-) -> None:
+async def test_sensor_display_precision(hass: HomeAssistant) -> None:
     """Test sensor display precision."""
+    coordinator = GasStationCoordinator(
+        hass=hass,
+        gas_station_id=1234,
+        product_id=1,
+    )
+    coordinator.data = {
+        "price": 1.459,
+        "address": "Calle Ejemplo 123",
+        "latitude": 40.4168,
+        "longitude": -3.7038,
+    }
+
     sensor = GasStationSensor(
         name="Test Sensor",
         unique_id="test-unique-id",
         fixed_discount=0.0,
         percentage_discount=0.0,
         show_in_map=False,
-        coordinator=mock_coordinator,
+        coordinator=coordinator,
     )
 
     assert sensor.suggested_display_precision == 4
-
