@@ -1,6 +1,6 @@
 [project]
 name = "ha-gas-station-spain"
-version = "2.1"
+version = "2.3.0"
 description = "Componente para Home Assistant que muestra precio actual del combustible en las distintas gasolineras de España"
 authors = [
     { name = "Miguel Ángel López", email = "miguel.angel.lopez.vicente@gmail.com" }
@@ -11,7 +11,7 @@ repository = "https://github.com/miguelangellv/gas-station-spain"
 requires-python = ">=3.13.2"
 dependencies = [
     "homeassistant>=2025.10.0",
-    "gas-station-spain-api==1.2.0",
+    "gas-station-spain-api==1.4.0",
 ]
 
 [project.urls]
@@ -69,12 +69,16 @@ known-first-party = [
 ]
 combine-as-imports = true
 
-[tool.uv]
-dev-dependencies = [
+[dependency-groups]
+dev = [
     "pre-commit>=3.6.0",
     "pre-commit-hooks>=4.5.0",
     "pylint>=3.1.0",
     "ruff>=0.3.2",
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=4.1.0",
+    "pytest-homeassistant-custom-component>=0.13.0",
 ]
 
 [build-system]

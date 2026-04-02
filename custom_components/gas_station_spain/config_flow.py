@@ -1,17 +1,15 @@
 """Gas Station Spain Config"""
 
 from __future__ import annotations
-
 import logging
-
 from typing import Any, Self, override
-
+import gas_station_spain_api as gss
 import voluptuous as vol
-
-from homeassistant.core import callback
-
+from gas_station_spain_api import GasStationServerUnavailableException
 from homeassistant import config_entries
+from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
+from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.selector import (
     SelectSelector,
     SelectSelectorConfig,
@@ -21,10 +19,6 @@ from homeassistant.helpers.selector import (
     NumberSelector,
     NumberSelectorMode,
 )
-from homeassistant.helpers import config_validation as cv
-
-import gas_station_spain_api as gss
-
 from .const import (
     DOMAIN,
     CONF_FIXED_DISCOUNT,
@@ -60,18 +54,25 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def is_matching(self, other_flow: Self) -> bool:
         return False
 
+    async def _handle_api_call(self, api_call, *args, **kwargs):
+        """Handle API calls with exception handling."""
+        try:
+            result = await api_call(*args, **kwargs) if callable(api_call) and not isinstance(api_call, type) else api_call
+            return result
+        except (GasStationServerUnavailableException, ConnectionError, TimeoutError, OSError):
+            return None
+
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         if user_input is not None:
             self.product_id = user_input[CONF_PRODUCT]
             self.province_id = user_input[CONF_PROVINCE]
             return await self.async_step_municipality()
-
-        provinces = await gss.get_provinces()
+        provinces = await self._handle_api_call(gss.get_provinces)
+        if provinces is None:
+            return self.async_abort(reason="server_unavailable")
         options_provinces = list(map(lambda p: SelectOptionDict(label=p.name, value=str(p.id)), provinces))
-
         products = gss.get_products()
         options_products = list(map(lambda p: SelectOptionDict(label=p.name, value=str(p.id)), products))
-
         schema = vol.Schema(
             {
                 vol.Required(CONF_PRODUCT): SelectSelector(
@@ -90,17 +91,16 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 ),
             }
         )
-
         return self.async_show_form(step_id="user", data_schema=schema, last_step=False)
 
     async def async_step_municipality(self, user_input: dict[str, Any] | None = None):
         """Municipality selection."""
-
         if user_input is not None:
             self.municipality_id = user_input[CONF_MUNICIPALITY]
             return await self.async_step_station()
-
-        municipalities = await gss.get_municipalities(id_province=self.province_id)
+        municipalities = await self._handle_api_call(gss.get_municipalities, id_province=self.province_id)
+        if municipalities is None:
+            return self.async_abort(reason="server_unavailable")
         options = list(map(lambda m: SelectOptionDict(label=m.name, value=str(m.id)), municipalities))
         schema = vol.Schema(
             {
@@ -120,10 +120,14 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             self.station_id = user_input[CONF_STATION]
             return await self.async_step_options()
-
-        stations = await gss.get_gas_stations(
-            municipality_id=int(self.municipality_id), product_id=int(self.product_id), province_id=int(self.province_id)
+        stations = await self._handle_api_call(
+            gss.get_gas_stations,
+            municipality_id=int(self.municipality_id),
+            product_id=int(self.product_id),
+            province_id=int(self.province_id),
         )
+        if stations is None:
+            return self.async_abort(reason="server_unavailable")
         options = list(
             map(
                 lambda s: SelectOptionDict(label=f"{s.marquee} - {s.address}", value=str(s.id)),
@@ -145,17 +149,16 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_options(self, user_input: dict[str, Any] | None = None):
         """Reconfigure Conflig Flow."""
-
         if user_input is not None:
             self.show_in_map = user_input[CONF_SHOW_IN_MAP]
             self.fixed_discount = user_input[CONF_FIXED_DISCOUNT]
             self.percentage_discount = user_input[CONF_PERCENTAGE_DISCOUNT]
-            station = await gss.get_gas_station(self.station_id)
+            station = await self._handle_api_call(gss.get_gas_station, self.station_id)
+            if station is None:
+                return self.async_abort(reason="server_unavailable")
             product = next(filter(lambda x: x.id == int(self.product_id), gss.get_products()))
-
             unique = f"{self.product_id}-{station.id}"
             name = f"{product.name}, {station.marquee} ({station.address})"
-
             await self.async_set_unique_id(unique)
             return self.async_create_entry(
                 title=name,
@@ -168,7 +171,6 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     CONF_SHOW_IN_MAP: self.show_in_map,
                 },
             )
-
         schema = vol.Schema(
             {
                 vol.Required(CONF_FIXED_DISCOUNT, default=0): NumberSelector(
@@ -205,12 +207,10 @@ class OptionFlowHandler(config_entries.OptionsFlow):
         """Manage the options."""
         if user_input is not None:
             return self.async_create_entry(title="Gasolineras de España", data=user_input)
-
         # Fill options with entry data
         fixed = self.entry.options.get(CONF_FIXED_DISCOUNT, self.entry.data[CONF_FIXED_DISCOUNT])
         percentage = self.entry.options.get(CONF_PERCENTAGE_DISCOUNT, self.entry.data[CONF_PERCENTAGE_DISCOUNT])
         show_in_map = self.entry.options.get(CONF_SHOW_IN_MAP, self.entry.data[CONF_SHOW_IN_MAP])
-
         schema = vol.Schema(
             {
                 vol.Required(CONF_FIXED_DISCOUNT, default=float(fixed)): NumberSelector(
@@ -234,5 +234,4 @@ class OptionFlowHandler(config_entries.OptionsFlow):
                 vol.Optional(CONF_SHOW_IN_MAP, default=show_in_map): cv.boolean,
             }
         )
-
         return self.async_show_form(step_id="init", data_schema=schema)
