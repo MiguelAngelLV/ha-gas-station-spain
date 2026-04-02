@@ -1389,7 +1389,7 @@ wheels = [
 
 [[package]]
 name = "ha-gas-station-spain"
-version = "2.1"
+version = "2.3.0"
 source = { editable = "." }
 dependencies = [
     { name = "gas-station-spain-api" },
