@@ -50,7 +50,6 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry):
             CONF_SHOW_IN_MAP: False,
         }
 
-        hass.config_entries.async_update_entry(config_entry, data=data)
-        config_entry.version = 2
+        hass.config_entries.async_update_entry(config_entry, data=data, version=2)
 
     return True
