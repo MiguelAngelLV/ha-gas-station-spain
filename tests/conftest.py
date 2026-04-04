@@ -136,13 +136,17 @@ def mock_get_gas_stations(mock_gas_station):
 @pytest.fixture
 def mock_get_gas_station(mock_gas_station):
     """Mock get_gas_station API call."""
-    with patch("custom_components.gas_station_spain.config_flow.gss.get_gas_station") as mock:
+    with (
+        patch("custom_components.gas_station_spain.config_flow.gss.get_gas_station") as mock_config,
+        patch("custom_components.gas_station_spain.sensor.gss.get_gas_station") as mock_sensor,
+    ):
 
         async def async_return(*_args, **_kwargs):
             return mock_gas_station
 
-        mock.side_effect = async_return
-        yield mock
+        mock_config.side_effect = async_return
+        mock_sensor.side_effect = async_return
+        yield mock_sensor
 
 
 @pytest.fixture

@@ -9,6 +9,7 @@ from homeassistant.helpers.update_coordinator import (
     DataUpdateCoordinator,
     CoordinatorEntity,
 )
+from homeassistant.helpers.restore_state import RestoreEntity
 
 from homeassistant.const import (
     CURRENCY_EURO,
@@ -48,7 +49,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     _LOGGER.info("Creating Gas Station Spain sensor with station=%s and product=%s", gas_station_id, product_id)
 
     coordinator = GasStationCoordinator(hass=hass, gas_station_id=gas_station_id, product_id=product_id)
-    await coordinator.async_config_entry_first_refresh()
+
+    # Intentar la primera actualización pero no fallar si hay error
+    try:
+        await coordinator.async_config_entry_first_refresh()
+    except Exception as err:  # pylint: disable=W0718
+        _LOGGER.warning("Could not fetch initial data for station=%s: %s. Will use restored state if available.", gas_station_id, err)
 
     sensor = GasStationSensor(
         entry.title,
@@ -79,10 +85,14 @@ class GasStationCoordinator(DataUpdateCoordinator):
         self._product_id = product_id
 
     async def async_config_entry_first_refresh(self) -> None:
-        gas_station = await gss.get_gas_station(self._gas_station_id)
-        self._address = gas_station.address
-        self._latitude = gas_station.latitude
-        self._longitude = gas_station.longitude
+        try:
+            gas_station = await gss.get_gas_station(self._gas_station_id)
+            self._address = gas_station.address
+            self._latitude = gas_station.latitude
+            self._longitude = gas_station.longitude
+        except Exception as err:  # pylint: disable=W0718
+            _LOGGER.warning("Could not fetch gas station data for station=%s: %s", self._gas_station_id, err)
+
         await super().async_config_entry_first_refresh()
 
     async def _async_update_data(self):
@@ -101,7 +111,7 @@ class GasStationCoordinator(DataUpdateCoordinator):
 
 
 # pylint: disable=R0913,R0902,R0917
-class GasStationSensor(CoordinatorEntity, SensorEntity):
+class GasStationSensor(CoordinatorEntity, SensorEntity, RestoreEntity):
     """Gas Station Sensor."""
 
     def __init__(
@@ -131,19 +141,46 @@ class GasStationSensor(CoordinatorEntity, SensorEntity):
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
+
+        # Restaurar el último estado conocido si está disponible
+        last_state = await self.async_get_last_state()
+        if last_state is not None and last_state.state not in (None, "unknown", "unavailable"):
+            try:
+                self._state = float(last_state.state)
+                if last_state.attributes:
+                    self._attrs = dict(last_state.attributes)
+                _LOGGER.debug("Restored previous state: %s with attributes: %s", self._state, self._attrs)
+            except (ValueError, TypeError) as err:
+                _LOGGER.warning("Could not restore previous state: %s", err)
+
+        # Actualizar con datos actuales del coordinador si están disponibles
         self._handle_coordinator_update()
 
     @callback
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
-        data = self.coordinator.data
-        self._state = (data["price"] - self._fixed_discount) * (1.0 - self._percentage_discount / 100.0)
-        self._attrs["Precio Original"] = data["price"]
-        self._attrs["Dirección"] = data["address"]
+        if self.coordinator.data is None:
+            _LOGGER.debug("No data available from coordinator yet")
+            return
 
+        data = self.coordinator.data
+
+        # Solo actualizar si tenemos un precio válido
+        if data.get("price") is not None:
+            self._state = (data["price"] - self._fixed_discount) * (1.0 - self._percentage_discount / 100.0)
+            self._attrs["Precio Original"] = data["price"]
+
+        # Actualizar dirección si está disponible
+        if data.get("address") is not None:
+            self._attrs["Dirección"] = data["address"]
+
+        # Actualizar coordenadas si están disponibles y se debe mostrar en el mapa
         if self._show_in_map:
-            self._attrs["latitude"] = data["latitude"]
-            self._attrs["longitude"] = data["longitude"]
+            if data.get("latitude") is not None:
+                self._attrs["latitude"] = data["latitude"]
+            if data.get("longitude") is not None:
+                self._attrs["longitude"] = data["longitude"]
+
         self.async_write_ha_state()
 
     @property
