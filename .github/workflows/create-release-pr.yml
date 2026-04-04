@@ -78,7 +78,7 @@ jobs:
           LAST_TAG="${{ steps.last_tag.outputs.tag }}"
           
           if [ -z "$LAST_TAG" ]; then
-            CHANGELOG=$(git log --pretty=format:"- %s (%h)" --no-merges)
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)" --no-merges | head -20)
           else
             CHANGELOG=$(git log ${LAST_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges)
           fi
@@ -86,24 +86,7 @@ jobs:
           # Guardar changelog en archivo temporal
           echo "$CHANGELOG" > /tmp/changelog.txt
           
-          # Crear changelog formateado
-          cat > /tmp/changelog_formatted.txt << 'EOF'
-          ## Cambios en v$NEW_VERSION
-          
-          $CHANGELOG
-          
-          ---
-          
-          **Tipo de versión**: ${{ github.event.inputs.version_type }}
-          **Versión anterior**: ${{ steps.current_version.outputs.version }}
-          **Nueva versión**: $NEW_VERSION
-          EOF
-          
-          # Reemplazar variables
-          sed -i "s/\$NEW_VERSION/$NEW_VERSION/g" /tmp/changelog_formatted.txt
-          sed -i "s/\$CHANGELOG/$CHANGELOG/g" /tmp/changelog_formatted.txt
-          
-          echo "changelog_file=/tmp/changelog_formatted.txt" >> $GITHUB_OUTPUT
+          echo "Changelog generated successfully"
 
       - name: Create release branch
         run: |
@@ -139,25 +122,23 @@ jobs:
         run: |
           NEW_VERSION="${{ steps.new_version.outputs.version }}"
           LAST_TAG="${{ steps.last_tag.outputs.tag }}"
+          CURRENT_VERSION="${{ steps.current_version.outputs.version }}"
+          VERSION_TYPE="${{ github.event.inputs.version_type }}"
           
-          # Generar changelog para la PR
-          if [ -z "$LAST_TAG" ]; then
-            CHANGELOG=$(git log --pretty=format:"- %s (%h)" --no-merges | head -20)
-          else
-            CHANGELOG=$(git log ${LAST_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges)
-          fi
+          # Leer changelog desde archivo
+          CHANGELOG=$(cat /tmp/changelog.txt)
           
-          # Crear descripción de la PR
-          PR_BODY=$(cat <<EOF
-          ## 🚀 Release v$NEW_VERSION
+          # Crear descripción de la PR usando Here Document
+          cat > /tmp/pr_body.md << 'EOFPR'
+          ## 🚀 Release v%%NEW_VERSION%%
           
-          **Tipo de release**: \`${{ github.event.inputs.version_type }}\`
-          **Versión anterior**: \`${{ steps.current_version.outputs.version }}\`
-          **Nueva versión**: \`$NEW_VERSION\`
+          **Tipo de release**: `%%VERSION_TYPE%%`
+          **Versión anterior**: `%%CURRENT_VERSION%%`
+          **Nueva versión**: `%%NEW_VERSION%%`
           
           ### 📋 Cambios incluidos
           
-          $CHANGELOG
+          %%CHANGELOG%%
           
           ---
           
@@ -171,13 +152,25 @@ jobs:
           
           Esta PR fue creada automáticamente por el workflow de release.
           Al mergear esta PR, se creará automáticamente el tag y la release en GitHub.
-          EOF
-          )
+          EOFPR
           
-          # Crear PR
+          # Reemplazar marcadores con valores reales usando múltiples sed
+          sed -i "s/%%NEW_VERSION%%/$NEW_VERSION/g" /tmp/pr_body.md
+          sed -i "s/%%CURRENT_VERSION%%/$CURRENT_VERSION/g" /tmp/pr_body.md
+          sed -i "s/%%VERSION_TYPE%%/$VERSION_TYPE/g" /tmp/pr_body.md
+          
+          # Insertar changelog línea por línea
+          # Primero, crear archivo temporal con el changelog indentado
+          echo "$CHANGELOG" > /tmp/changelog_temp.txt
+          
+          # Reemplazar el marcador de changelog con el contenido del archivo
+          sed -i "/%%CHANGELOG%%/r /tmp/changelog_temp.txt" /tmp/pr_body.md
+          sed -i "/%%CHANGELOG%%/d" /tmp/pr_body.md
+          
+          # Crear PR usando el archivo como cuerpo
           gh pr create \
             --title "v$NEW_VERSION" \
-            --body "$PR_BODY" \
+            --body-file /tmp/pr_body.md \
             --base main \
             --head release/v$NEW_VERSION \
             --label release
