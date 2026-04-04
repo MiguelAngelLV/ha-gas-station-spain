@@ -1,0 +1,186 @@
+name: Create Release PR
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_type:
+        description: 'Tipo de versión a lanzar'
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+jobs:
+  create-release-pr:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Get current version
+        id: current_version
+        run: |
+          CURRENT_VERSION=$(jq -r '.version' custom_components/gas_station_spain/manifest.json)
+          echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          echo "Current version: $CURRENT_VERSION"
+
+      - name: Calculate new version
+        id: new_version
+        run: |
+          CURRENT="${{ steps.current_version.outputs.version }}"
+          TYPE="${{ github.event.inputs.version_type }}"
+          
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+          
+          case $TYPE in
+            major)
+              MAJOR=$((MAJOR + 1))
+              MINOR=0
+              PATCH=0
+              ;;
+            minor)
+              MINOR=$((MINOR + 1))
+              PATCH=0
+              ;;
+            patch)
+              PATCH=$((PATCH + 1))
+              ;;
+          esac
+          
+          NEW_VERSION="$MAJOR.$MINOR.$PATCH"
+          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "New version: $NEW_VERSION"
+
+      - name: Get last tag
+        id: last_tag
+        run: |
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          echo "tag=$LAST_TAG" >> $GITHUB_OUTPUT
+          echo "Last tag: $LAST_TAG"
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          NEW_VERSION="${{ steps.new_version.outputs.version }}"
+          LAST_TAG="${{ steps.last_tag.outputs.tag }}"
+          
+          if [ -z "$LAST_TAG" ]; then
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)" --no-merges)
+          else
+            CHANGELOG=$(git log ${LAST_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges)
+          fi
+          
+          # Guardar changelog en archivo temporal
+          echo "$CHANGELOG" > /tmp/changelog.txt
+          
+          # Crear changelog formateado
+          cat > /tmp/changelog_formatted.txt << 'EOF'
+          ## Cambios en v$NEW_VERSION
+          
+          $CHANGELOG
+          
+          ---
+          
+          **Tipo de versión**: ${{ github.event.inputs.version_type }}
+          **Versión anterior**: ${{ steps.current_version.outputs.version }}
+          **Nueva versión**: $NEW_VERSION
+          EOF
+          
+          # Reemplazar variables
+          sed -i "s/\$NEW_VERSION/$NEW_VERSION/g" /tmp/changelog_formatted.txt
+          sed -i "s/\$CHANGELOG/$CHANGELOG/g" /tmp/changelog_formatted.txt
+          
+          echo "changelog_file=/tmp/changelog_formatted.txt" >> $GITHUB_OUTPUT
+
+      - name: Create release branch
+        run: |
+          NEW_VERSION="${{ steps.new_version.outputs.version }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b release/v$NEW_VERSION
+
+      - name: Update manifest.json version
+        run: |
+          NEW_VERSION="${{ steps.new_version.outputs.version }}"
+          jq --arg version "$NEW_VERSION" '.version = $version' \
+            custom_components/gas_station_spain/manifest.json > /tmp/manifest.json
+          mv /tmp/manifest.json custom_components/gas_station_spain/manifest.json
+          cat custom_components/gas_station_spain/manifest.json
+
+      - name: Update pyproject.toml version
+        run: |
+          NEW_VERSION="${{ steps.new_version.outputs.version }}"
+          sed -i "s/^version = \".*\"/version = \"$NEW_VERSION\"/" pyproject.toml
+          grep "^version = " pyproject.toml
+
+      - name: Commit changes
+        run: |
+          NEW_VERSION="${{ steps.new_version.outputs.version }}"
+          git add custom_components/gas_station_spain/manifest.json pyproject.toml
+          git commit -m "chore: bump version to v$NEW_VERSION"
+          git push origin release/v$NEW_VERSION
+
+      - name: Create Pull Request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          NEW_VERSION="${{ steps.new_version.outputs.version }}"
+          LAST_TAG="${{ steps.last_tag.outputs.tag }}"
+          
+          # Generar changelog para la PR
+          if [ -z "$LAST_TAG" ]; then
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)" --no-merges | head -20)
+          else
+            CHANGELOG=$(git log ${LAST_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges)
+          fi
+          
+          # Crear descripción de la PR
+          PR_BODY=$(cat <<EOF
+          ## 🚀 Release v$NEW_VERSION
+          
+          **Tipo de release**: \`${{ github.event.inputs.version_type }}\`
+          **Versión anterior**: \`${{ steps.current_version.outputs.version }}\`
+          **Nueva versión**: \`$NEW_VERSION\`
+          
+          ### 📋 Cambios incluidos
+          
+          $CHANGELOG
+          
+          ---
+          
+          ### ✅ Checklist
+          
+          - [ ] Los cambios han sido revisados
+          - [ ] La documentación está actualizada (si es necesario)
+          - [ ] Los tests pasan correctamente
+          
+          ### 📝 Notas
+          
+          Esta PR fue creada automáticamente por el workflow de release.
+          Al mergear esta PR, se creará automáticamente el tag y la release en GitHub.
+          EOF
+          )
+          
+          # Crear PR
+          gh pr create \
+            --title "v$NEW_VERSION" \
+            --body "$PR_BODY" \
+            --base main \
+            --head release/v$NEW_VERSION \
+            --label release
+          
+          echo "✅ PR creada exitosamente para la versión v$NEW_VERSION"
+
